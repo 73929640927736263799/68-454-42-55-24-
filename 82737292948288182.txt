@@ -384,7 +384,7 @@ if game.PlaceId ~= 823323202 then return end
 	AdminImgBtn = Instance.new("ImageButton")
 
 
-HunterHub.Name = "HunterHubv.4.2"
+HunterHub.Name = "HunterHubv.4.3"
 HunterHub.Parent = game:GetService("CoreGui")
 HunterHub.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 HunterHub.ResetOnSpawn = false
@@ -905,8 +905,8 @@ TextButton_6.TextWrapped = true
 local player = game.Players.LocalPlayer
 
 local lastPosition = nil
-local isScriptActive = false
-local connections = {}
+local isScriptActive_6 = false
+local connections_6 = {}
 
 local function respawnCharacter()
     if player.Character then
@@ -919,8 +919,8 @@ end
 local function connectDiedEvent()
     if player.Character then
         local humanoid = player.Character:WaitForChild("Humanoid")
-        table.insert(connections, humanoid.Died:Connect(respawnCharacter))
-        table.insert(connections, humanoid.HealthChanged:Connect(function(health)
+        table.insert(connections_6, humanoid.Died:Connect(respawnCharacter))
+        table.insert(connections_6, humanoid.HealthChanged:Connect(function(health)
             if health <= 0.3 * humanoid.MaxHealth then
                 respawnCharacter()
             end
@@ -948,7 +948,7 @@ local function onCharacterAdded(character)
 end
 
 local function updateButton()
-    if isScriptActive then
+    if isScriptActive_6 then
         TextButton_6.Text = "On"
         TextButton_6.TextColor3 = Color3.fromRGB(0, 255, 0)
     else
@@ -957,23 +957,23 @@ local function updateButton()
     end
 end
 
-local function toggleScript()
-    isScriptActive = not isScriptActive
-    if isScriptActive then
-        table.insert(connections, player.CharacterAdded:Connect(onCharacterAdded))
+local function toggleScript_6()
+    isScriptActive_6 = not isScriptActive_6
+    if isScriptActive_6 then
+        table.insert(connections_6, player.CharacterAdded:Connect(onCharacterAdded))
         if player.Character then
             onCharacterAdded(player.Character)
         end
     else
-        for _, connection in ipairs(connections) do
+        for _, connection in ipairs(connections_6) do
             connection:Disconnect()
         end
-        connections = {}
+        connections_6 = {}
     end
     updateButton()
 end
 
-TextButton_6.MouseButton1Down:Connect(toggleScript)
+TextButton_6.MouseButton1Down:Connect(toggleScript_6)
 updateButton()
 
 UITextSizeConstraint_13.Parent = TextButton_6
@@ -3005,43 +3005,71 @@ TextButton_20.TextScaled = true
 TextButton_20.TextSize = 19.000
 TextButton_20.TextWrapped = true
 
-local RunService = game:GetService("RunService")
-local teleporting = false
-local heartbeatConnection
+local enabled = false
+local runConnection
 
-local function teleportPlayers()
-    local yourCharacter = game:GetService("Players").LocalPlayer.Character
-    if not yourCharacter then return end
-    local yourPosition = yourCharacter.HumanoidRootPart.Position
-
-    local players = game:GetService("Players"):GetPlayers()
-
-    for _, player in ipairs(players) do
-        if player ~= game:GetService("Players").LocalPlayer then
-            player.Character:MoveTo(Vector3.new(yourPosition.X, yourPosition.Y + 30, yourPosition.Z))
-            player.Character.Head.Size = Vector3.new(10, 10, 10)
+local function teleportKunaiToPlayerHead(kunai, player)
+    if player and player.Character and kunai and kunai:IsA("BasePart") then
+        local character = player.Character
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            local head = character:FindFirstChild("Head")
+            if head then
+                kunai.CFrame = head.CFrame
+            end
         end
     end
 end
 
-local function toggleTeleport()
-    teleporting = not teleporting
-    if teleporting then
-        TextButton_20.Text = "Off"
-        TextButton_20.TextColor3 = Color3.fromRGB(255, 0, 0)
-        TextButton_20.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-        if heartbeatConnection then
-            heartbeatConnection:Disconnect()
+local function teleportKunaisToPlayers(kunais)
+    local players = game.Players:GetPlayers()
+    for i, kunai in ipairs(kunais) do
+        local playerIndex = (i - 1) % #players + 1
+        local player = players[playerIndex]
+        teleportKunaiToPlayerHead(kunai, player)
+    end
+end
+
+local function checkForThrownKunais()
+    local thrownKunais = {}
+    for _, kunai in ipairs(workspace:GetChildren()) do
+        if kunai.Name == "ThrownKunai" then
+            table.insert(thrownKunais, kunai)
         end
-    else
+    end
+    if #thrownKunais > 0 then
+        teleportKunaisToPlayers(thrownKunais)
+    end
+end
+
+local function startLoop()
+    while enabled do
+        checkForThrownKunais()
+        wait(0.1)
+    end
+end
+
+local function toggle()
+    enabled = not enabled
+    if enabled then
         TextButton_20.Text = "On"
         TextButton_20.TextColor3 = Color3.fromRGB(0, 255, 0)
-        TextButton_20.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-        heartbeatConnection = RunService.Heartbeat:Connect(teleportPlayers)
+        runConnection = coroutine.create(startLoop)
+        coroutine.resume(runConnection)
+    else
+        TextButton_20.Text = "Off"
+        TextButton_20.TextColor3 = Color3.fromRGB(255, 0, 0)
+        if runConnection then
+            coroutine.yield(runConnection)
+            runConnection = nil
+        end
     end
 end
 
-TextButton_20.MouseButton1Down:Connect(toggleTeleport)
+TextButton_20.MouseButton1Click:Connect(toggle)
+
+TextButton_20.Text = "Off"
+TextButton_20.TextColor3 = Color3.fromRGB(255, 0, 0)
 
 UITextSizeConstraint_66.Parent = TextButton_20
 UITextSizeConstraint_66.MaxTextSize = 19
@@ -3408,27 +3436,27 @@ TextButton_26.TextScaled = true
 TextButton_26.TextSize = 19.000
 TextButton_26.TextWrapped = true
 
-local clickInterval = 0
-local autoClickerEnabled = false
-local lastClickTime = 0
+clickInterval = 0
+autoClickerEnabled = false
+lastClickTime = 0
 
-local userInputService = game:GetService("UserInputService")
-local virtualUser = game:GetService("VirtualUser")
-local runService = game:GetService("RunService")
+userInputService = game:GetService("UserInputService")
+virtualUser = game:GetService("VirtualUser")
+runService = game:GetService("RunService")
 
-local mainScriptEnabled = false
+mainScriptEnabled = false
 
-local function autoClick()
-    local player = game.Players.LocalPlayer
-    local mouse = player:GetMouse()
-    local clickPosition = Vector2.new(mouse.X, mouse.Y)
+function autoClick()
+    player = game.Players.LocalPlayer
+    mouse = player:GetMouse()
+    clickPosition = Vector2.new(mouse.X, mouse.Y)
     
     virtualUser:CaptureController()
     virtualUser:Button1Down(clickPosition, workspace.CurrentCamera.CFrame)
     virtualUser:Button1Up(clickPosition, workspace.CurrentCamera.CFrame)
 end
 
-local function onInputBegan(input, gameProcessedEvent)
+function onInputBegan(input, gameProcessedEvent)
     if gameProcessedEvent then return end
 
     if input.UserInputType == Enum.UserInputType.MouseButton1 or 
@@ -3437,7 +3465,7 @@ local function onInputBegan(input, gameProcessedEvent)
     end
 end
 
-local function onInputEnded(input, gameProcessedEvent)
+function onInputEnded(input, gameProcessedEvent)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or 
        input.UserInputType == Enum.UserInputType.Touch then
         autoClickerEnabled = false
@@ -3454,7 +3482,7 @@ runService.Heartbeat:Connect(function(step)
     end
 end)
 
-local function toggleMainScript()
+function toggleMainScript()
     mainScriptEnabled = not mainScriptEnabled
     if mainScriptEnabled then
         TextButton_26.Text = "On"
@@ -4322,6 +4350,7 @@ TextButton_31.TextScaled = true
 TextButton_31.TextSize = 19.000
 TextButton_31.TextWrapped = true
 
+
 isRunning = false
 connections = {}
 
@@ -4585,13 +4614,15 @@ TextButton_32.Position = UDim2.new(0.849971473, 0, -0.00631929329, 0)
 TextButton_32.Size = UDim2.new(0.143999994, 0, 0.600000024, 0)
 TextButton_32.ZIndex = 2
 TextButton_32.Font = Enum.Font.Fantasy
-TextButton_32.Text = "Exct"
+TextButton_32.Text = "Off"
 TextButton_32.TextColor3 = Color3.fromRGB(255, 0, 0)
 TextButton_32.TextScaled = true
 TextButton_32.TextSize = 19.000
 TextButton_32.TextWrapped = true
 
-TextButton_32.MouseButton1Down:Connect(function()
+local isScriptActive_32 = false
+local connections_32 = {}
+local player = game.Players.LocalPlayer
 
 local function onDeath(character)
     for _, part in ipairs(character:GetDescendants()) do
@@ -4624,25 +4655,49 @@ local function onDeath(character)
     end
 end
 
-local function onCharacterAdded(character)
+local function onCharacterAdded_32(character)
     local humanoid = character:FindFirstChildOfClass("Humanoid")
     if humanoid then
-        humanoid.Died:Connect(function()
+        table.insert(connections_32, humanoid.Died:Connect(function()
             onDeath(character)
-        end)
+        end))
     end
 end
 
-game.Players.PlayerAdded:Connect(function(player)
-    player.CharacterAdded:Connect(onCharacterAdded)
-end)
+local function toggleScript_32()
+    isScriptActive_32 = not isScriptActive_32
+    if isScriptActive_32 then
+        TextButton_32.Text = "On"
+        TextButton_32.TextColor3 = Color3.fromRGB(0, 255, 0)
+        
+        table.insert(connections_32, game.Players.PlayerAdded:Connect(function(player)
+            table.insert(connections_32, player.CharacterAdded:Connect(onCharacterAdded_32))
+        end))
 
-for _, player in ipairs(game.Players:GetPlayers()) do
-    if player.Character then
-        onCharacterAdded(player.Character)
+        for _, player in ipairs(game.Players:GetPlayers()) do
+            if player.Character then
+                onCharacterAdded_32(player.Character)
+            end
+        end
+
+        table.insert(connections_32, player.CharacterAdded:Connect(function()
+            if isScriptActive_32 then
+                toggleScript_32()
+            end
+        end))
+
+    else
+        TextButton_32.Text = "Off"
+        TextButton_32.TextColor3 = Color3.fromRGB(255, 0, 0)
+        
+        for _, connection in ipairs(connections_32) do
+            connection:Disconnect()
+        end
+        connections_32 = {}
     end
 end
-end)
+
+TextButton_32.MouseButton1Down:Connect(toggleScript_32)
 
 UITextSizeConstraint_90.Parent = TextButton_32
 UITextSizeConstraint_90.MaxTextSize = 19
@@ -6510,27 +6565,44 @@ TextButton_57.Position = UDim2.new(0.349960327, 0, -0.00631929329, 0)
 TextButton_57.Size = UDim2.new(0.144039169, 0, 0.600000083, 0)
 TextButton_57.ZIndex = 2
 TextButton_57.Font = Enum.Font.Fantasy
-TextButton_57.Text = "Exct"
+TextButton_57.Text = "Off"
 TextButton_57.TextColor3 = Color3.fromRGB(255, 0, 0)
 TextButton_57.TextScaled = true
 TextButton_57.TextSize = 19.000
 TextButton_57.TextWrapped = true
-TextButton_57.MouseButton1Down:connect(function()
-local enemyPlayers = {"Naliza27", "Naliza28", "ImJxnnyyy", "caongochaidang1", "Haidang072023", "Haidang072024", "mangbaba12"}
 
-	game.Players.PlayerAdded:Connect(function(player)
-		for _, enemyName in ipairs(enemyPlayers) do
-			if player.Name == enemyName then
-				game.StarterGui:SetCore("ChatMakeSystemMessage", {
-					Text = "[WARNING] One of the enemies has joined the game!!!",
-					Color = Color3.fromRGB(255, 255, 0),
-					Font = Enum.Font.ArialBold,
-					FontSize = Enum.FontSize.Size24
-				})
-				break
-			end
-		end
-	end)
+isEnabled_57 = false
+connection_57 = nil
+
+function start_57()
+    isEnabled_57 = not isEnabled_57
+    if isEnabled_57 then
+        TextButton_57.Text = "On"
+        TextButton_57.TextColor3 = Color3.fromRGB(0, 255, 0)
+        connection_57 = game.Players.PlayerAdded:Connect(function(player)
+            for _, enemyName in ipairs({"Naliza27", "Naliza28", "ImJxnnyyy", "caongochaidang1", "Haidang072023", "Haidang072024", "mangbaba12"}) do
+                if player.Name == enemyName then
+                    game.StarterGui:SetCore("ChatMakeSystemMessage", {
+                        Text = "[WARNING] One of the enemies has joined the game!!!",
+                        Color = Color3.fromRGB(255, 255, 0),
+                        Font = Enum.Font.ArialBold,
+                        FontSize = Enum.FontSize.Size24
+                    })
+                    break
+                end
+            end
+        end)
+    else
+        TextButton_57.Text = "Off"
+        TextButton_57.TextColor3 = Color3.fromRGB(255, 0, 0)
+        if connection_57 then
+            connection_57:Disconnect()
+        end
+    end
+end
+
+TextButton_57.MouseButton1Down:Connect(function()
+    start_57()
 end)
 
 UITextSizeConstraint_148.Parent = TextButton_57
@@ -6581,74 +6653,91 @@ TextButton_58.Position = UDim2.new(0.848274291, 0, -0.0063190558, 0)
 TextButton_58.Size = UDim2.new(0.145697922, 0, 0.600000083, 0)
 TextButton_58.ZIndex = 2
 TextButton_58.Font = Enum.Font.Fantasy
-TextButton_58.Text = "Exct"
+TextButton_58.Text = "Off"
 TextButton_58.TextColor3 = Color3.fromRGB(255, 0, 0)
 TextButton_58.TextScaled = true
 TextButton_58.TextSize = 19.000
 TextButton_58.TextWrapped = true
-TextButton_58.MouseButton1Down:connect(function()
 
-		enabled = true 
-		spyOnMyself = true 
-		public = false 
-		publicItalics = true
-		privateProperties = {
-			Color = Color3.fromRGB(0,255,255); 
-			Font = Enum.Font.SourceSansBold;
-			TextSize = 15;
-		}
+isEnabled_58 = false
+connection_58 = nil
 
+function start_58()
+    isEnabled_58 = not isEnabled_58
+    if isEnabled_58 then
+        TextButton_58.Text = "On"
+        TextButton_58.TextColor3 = Color3.fromRGB(0, 255, 0)
 
-		local StarterGui = game:GetService("StarterGui")
-		local Players = game:GetService("Players")
-		local player = Players.LocalPlayer or Players:GetPropertyChangedSignal("LocalPlayer"):Wait() or Players.LocalPlayer
-		local saymsg = game:GetService("ReplicatedStorage"):WaitForChild("DefaultChatSystemChatEvents"):WaitForChild("SayMessageRequest")
-		local getmsg = game:GetService("ReplicatedStorage"):WaitForChild("DefaultChatSystemChatEvents"):WaitForChild("OnMessageDoneFiltering")
-		local instance = (_G.chatSpyInstance or 0) + 1
-		_G.chatSpyInstance = instance
+        spyOnMyself = true
+        public = false
+        publicItalics = true
+        privateProperties = {
+            Color = Color3.fromRGB(0, 255, 255),
+            Font = Enum.Font.SourceSansBold,
+            TextSize = 15,
+        }
 
-		local function onChatted(p,msg)
-			if _G.chatSpyInstance == instance then
-				if p==player and msg:lower():sub(1,4)=="/spy" then
-					enabled = not enabled
-					wait(0.3)
-					privateProperties.Text = "{SPY "..(enabled and "EN" or "DIS").."ABLED}"
-					StarterGui:SetCore("ChatMakeSystemMessage",privateProperties)
-				elseif enabled and (spyOnMyself==true or p~=player) then
-					msg = msg:gsub("[\n\r]",''):gsub("\t",' '):gsub("[ ]+",' ')
-					local hidden = true
-					local conn = getmsg.OnClientEvent:Connect(function(packet,channel)
-						if packet.SpeakerUserId==p.UserId and packet.Message==msg:sub(#msg-#packet.Message+1) and (channel=="All" or (channel=="Team" and public==false and Players[packet.FromSpeaker].Team==player.Team)) then
-							hidden = false
-						end
-					end)
-					wait(1)
-					conn:Disconnect()
-					if hidden and enabled then
-						if public then
-							saymsg:FireServer((publicItalics and "/me " or '').."{SPY} [".. p.Name .."]: "..msg,"All")
-						else
-							privateProperties.Text = "{SPY} [".. p.Name .."]: "..msg
-							StarterGui:SetCore("ChatMakeSystemMessage",privateProperties)
-						end
-					end
-				end
-			end
-		end
+        StarterGui = game:GetService("StarterGui")
+        Players = game:GetService("Players")
+        player = Players.LocalPlayer or Players:GetPropertyChangedSignal("LocalPlayer"):Wait() or Players.LocalPlayer
+        saymsg = game:GetService("ReplicatedStorage"):WaitForChild("DefaultChatSystemChatEvents"):WaitForChild("SayMessageRequest")
+        getmsg = game:GetService("ReplicatedStorage"):WaitForChild("DefaultChatSystemChatEvents"):WaitForChild("OnMessageDoneFiltering")
+        instance = (_G.chatSpyInstance or 0) + 1
+        _G.chatSpyInstance = instance
 
-		for _,p in ipairs(Players:GetPlayers()) do
-			p.Chatted:Connect(function(msg) onChatted(p,msg) end)
-		end
-		Players.PlayerAdded:Connect(function(p)
-			p.Chatted:Connect(function(msg) onChatted(p,msg) end)
-		end)
-		privateProperties.Text = "{SPY "..(enabled and "EN" or "DIS").."ABLED}"
-		StarterGui:SetCore("ChatMakeSystemMessage",privateProperties)
-		if not player.PlayerGui:FindFirstChild("Chat") then wait(3) end
-		local chatFrame = player.PlayerGui.Chat.Frame
-		chatFrame.ChatChannelParentFrame.Visible = true
-		chatFrame.ChatBarParentFrame.Position = chatFrame.ChatChannelParentFrame.Position+UDim2.new(UDim.new(),chatFrame.ChatChannelParentFrame.Size.Y)
-	end)
+        function onChatted(p, msg)
+            if _G.chatSpyInstance == instance then
+                if p == player and msg:lower():sub(1, 4) == "/spy" then
+                    isEnabled_58 = not isEnabled_58
+                    wait(0.3)
+                    privateProperties.Text = "{SPY "..(isEnabled_58 and "EN" or "DIS").."ABLED}"
+                    StarterGui:SetCore("ChatMakeSystemMessage", privateProperties)
+                elseif isEnabled_58 and (spyOnMyself or p ~= player) then
+                    msg = msg:gsub("[\n\r]", ''):gsub("\t", ' '):gsub("[ ]+", ' ')
+                    hidden = true
+                    conn = getmsg.OnClientEvent:Connect(function(packet, channel)
+                        if packet.SpeakerUserId == p.UserId and packet.Message == msg:sub(#msg - #packet.Message + 1) and (channel == "All" or (channel == "Team" and not public and Players[packet.FromSpeaker].Team == player.Team)) then
+                            hidden = false
+                        end
+                    end)
+                    wait(1)
+                    conn:Disconnect()
+                    if hidden and isEnabled_58 then
+                        if public then
+                            saymsg:FireServer((publicItalics and "/me " or '').."{SPY} [".. p.Name .."]: "..msg, "All")
+                        else
+                            privateProperties.Text = "{SPY} [".. p.Name .."]: "..msg
+                            StarterGui:SetCore("ChatMakeSystemMessage", privateProperties)
+                        end
+                    end
+                end
+            end
+        end
+
+        for _, p in ipairs(Players:GetPlayers()) do
+            p.Chatted:Connect(function(msg) onChatted(p, msg) end)
+        end
+        connection_58 = Players.PlayerAdded:Connect(function(p)
+            p.Chatted:Connect(function(msg) onChatted(p, msg) end)
+        end)
+        privateProperties.Text = "{SPY "..(isEnabled_58 and "EN" or "DIS").."ABLED}"
+        StarterGui:SetCore("ChatMakeSystemMessage", privateProperties)
+        if not player.PlayerGui:FindFirstChild("Chat") then wait(3) end
+        chatFrame = player.PlayerGui.Chat.Frame
+        chatFrame.ChatChannelParentFrame.Visible = true
+        chatFrame.ChatBarParentFrame.Position = chatFrame.ChatChannelParentFrame.Position + UDim2.new(UDim.new(), chatFrame.ChatChannelParentFrame.Size.Y)
+    else
+        TextButton_58.Text = "Off"
+        TextButton_58.TextColor3 = Color3.fromRGB(255, 0, 0)
+        if connection_58 then
+            connection_58:Disconnect()
+        end
+    end
+end
+
+TextButton_58.MouseButton1Down:Connect(function()
+    start_58()
+end)
 
 UITextSizeConstraint_151.Parent = TextButton_58
 UITextSizeConstraint_151.MaxTextSize = 19
